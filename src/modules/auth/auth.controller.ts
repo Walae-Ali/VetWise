@@ -7,6 +7,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -15,10 +16,13 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TwoFactorDto } from './dto/two-factor.dto';
 import { Public } from './decorators/public.decorator';
-
+import { UtilisateurService } from '../utilisateur/utilisateur.service';
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private userService: UtilisateurService,
+  ) {}
 
   @Public()
   @Post('login')
@@ -91,4 +95,8 @@ export class AuthController {
     // In a production app, you might want to add the token to a blacklist
     return { success: true, message: 'Déconnexion réussie' };
   }*/
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    const result = await this.userService.verifyEmail(token);
+  }
 }

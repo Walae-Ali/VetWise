@@ -15,13 +15,19 @@ import { Administrateur } from './modules/utilisateur/entities/administrateur.en
 import { Veterinaire } from './modules/utilisateur/entities/veterinaire.entity';
 import { AuthModule } from './modules/auth/auth.module';
 import { MailModule } from './modules/mail/mail.module';
-console.log('DB_USERNAME:', process.env.DB_USERNAME);
-import { AppDataSource } from './config/database.config';
-
+import {
+  AppDataSource,
+  databaseConfig,
+  jwtConfig,
+  mailConfig,
+} from './config/configuration';
+//import { AppDataSource } from './config/database.config';
+console.log('AppDataSource', AppDataSource);
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [databaseConfig, jwtConfig, mailConfig],
     }),
     TypeOrmModule.forRootAsync({
       useFactory: async () => ({

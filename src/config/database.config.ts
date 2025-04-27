@@ -13,7 +13,3 @@ export const AppDataSource = new DataSource({
   driver: require('mysql2'),
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 });
-//générer une migration
-// npm run migration:generate -- src/migrations/"migration_name".ts
-//éxecuter migration
-// npm run migration:run

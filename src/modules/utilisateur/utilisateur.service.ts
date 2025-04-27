@@ -29,10 +29,10 @@ export class UtilisateurService extends GenericService<Utilisateur> {
     return await this.UtilisateurRepository.findOne({ where: { email } });
   }
 
-  // User service method to create a user with email verification
   async createUser(
     createUserDto: RegisterDto,
   ): Promise<Omit<Utilisateur, 'motDePasse' | 'twoFactorSecret'>> {
+    console.log('Creating user with DTO:', createUserDto);
     return this.dataSource.transaction(async (manager) => {
       const existingUser = await manager.findOne(Utilisateur, {
         where: { email: createUserDto.email },
@@ -48,12 +48,10 @@ export class UtilisateurService extends GenericService<Utilisateur> {
         saltRounds,
       );
 
-      // 3. Generate verification token
       const verificationToken = crypto.randomBytes(32).toString('hex');
       const verificationExpires = new Date();
-      verificationExpires.setHours(verificationExpires.getHours() + 24); // 24 hour expiry
+      verificationExpires.setHours(verificationExpires.getHours() + 24);
 
-      // Check the role and create the appropriate entity
       let newUser: Utilisateur;
       if (createUserDto.role === UserRole.PET_OWNER) {
         newUser = manager.create(ProprietaireAnimal, {
@@ -64,6 +62,8 @@ export class UtilisateurService extends GenericService<Utilisateur> {
           role: UserRole.PET_OWNER,
           telephone: createUserDto.telephone,
           adresse: createUserDto.adresse,
+          verificationToken: verificationToken,
+          verificationExpires: verificationExpires,
         });
       } else if (createUserDto.role === UserRole.VETERINARIAN) {
         newUser = manager.create(Veterinaire, {
@@ -76,41 +76,34 @@ export class UtilisateurService extends GenericService<Utilisateur> {
           adresse: createUserDto.adresse,
           numLicence: createUserDto.numLicence,
           specialites: createUserDto.specialization,
+          verificationToken: verificationToken,
+          verificationExpires: verificationExpires,
         });
       } else {
         throw new BadRequestException('Invalid role provided!');
       }
 
-      // Save the new user entity
       await manager.save(newUser);
 
-      // 6. Send verification email
       await this.mailService.sendVerificationEmail(
         newUser.email,
         newUser.prenom,
         verificationToken,
       );
 
-      await this.createVerificationToken(
-        newUser,
-        verificationToken,
-        verificationExpires,
-      );
-
-      // 7. Return newUser without sensitive fields
       const { motDePasse, twoFactorSecret, ...result } = newUser;
       return result;
     });
   }
 
-  // Email verification method
   async verifyEmail(
     token: string,
   ): Promise<{ success: boolean; message: string }> {
     const user = await this.UtilisateurRepository.findOne({
       where: { verificationToken: token },
-    }); // we are verifying the existence of the token here
-
+    });
+    console.log(token);
+    console.log(user);
     if (!user) {
       throw new NotFoundException('Invalid verification token');
     }
@@ -123,7 +116,6 @@ export class UtilisateurService extends GenericService<Utilisateur> {
       throw new BadRequestException('Verification token has expired');
     }
 
-    // Update user as verified
     user.estVerifie = true;
     user.verificationToken = null;
     user.verificationExpires = null;
@@ -167,16 +159,5 @@ export class UtilisateurService extends GenericService<Utilisateur> {
     }
 
     await this.UtilisateurRepository.update(userId, { lastLogin: new Date() });
-  }
-
-  private async createVerificationToken(
-    user: Utilisateur,
-    token: string,
-    expires: Date,
-  ): Promise<void> {
-    await this.UtilisateurRepository.update(user.id, {
-      verificationToken: token,
-      verificationExpires: expires,
-    });
   }
 }
