@@ -22,7 +22,6 @@ import {
   mailConfig,
 } from './config/configuration';
 //import { AppDataSource } from './config/database.config';
-console.log('AppDataSource', AppDataSource);
 @Module({
   imports: [
     ConfigModule.forRoot({

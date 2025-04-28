@@ -26,6 +26,7 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
+    console.log('User found:', user);
     if (!user) {
       throw new UnauthorizedException('Identifiants incorrects');
     }
@@ -44,8 +45,9 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-
+    console.log('Login DTO:', loginDto);
+    const user = await this.validateUser(loginDto.email, loginDto.motDePasse);
+    console.log('User validated:', user);
     // Check if 2FA is required and there is no code
     if (user.twoFactorEnabled && !loginDto.twoFactorCode) {
       return {

@@ -29,7 +29,7 @@ export class UtilisateurService extends GenericService<Utilisateur> {
     return await this.UtilisateurRepository.findOne({ where: { email } });
   }
 
-  async createUser(
+  /*  async createUser(
     createUserDto: RegisterDto,
   ): Promise<Omit<Utilisateur, 'motDePasse' | 'twoFactorSecret'>> {
     console.log('Creating user with DTO:', createUserDto);
@@ -94,16 +94,78 @@ export class UtilisateurService extends GenericService<Utilisateur> {
       const { motDePasse, twoFactorSecret, ...result } = newUser;
       return result;
     });
-  }
+  }*/
+  async createUser(
+    createUserDto: RegisterDto,
+  ): Promise<Omit<Utilisateur, 'motDePasse' | 'twoFactorSecret'>> {
+    console.log('Creating user with DTO:', createUserDto);
 
+    return this.dataSource.transaction(async (manager) => {
+      const existingUser = await manager.findOne(Utilisateur, {
+        where: { email: createUserDto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email already registered !');
+      }
+
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(
+        createUserDto.motDePasse,
+        saltRounds,
+      );
+
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const verificationExpires = new Date();
+      verificationExpires.setHours(verificationExpires.getHours() + 24);
+
+      let newUser: Utilisateur;
+
+      if (createUserDto.role === UserRole.PET_OWNER) {
+        // Create as pet owner entity
+        newUser = new ProprietaireAnimal();
+        // Role is set automatically via constructor
+      } else if (createUserDto.role === UserRole.VETERINARIAN) {
+        // Create as veterinarian entity
+        newUser = new Veterinaire();
+        // Role is set automatically via constructor
+
+        // Set vet-specific fields
+        (newUser as Veterinaire).numLicence = createUserDto.numLicence;
+        (newUser as Veterinaire).specialites = createUserDto.specialization;
+      } else {
+        throw new BadRequestException('Invalid role provided!');
+      }
+
+      // Set common fields
+      newUser.email = createUserDto.email;
+      newUser.prenom = createUserDto.prenom;
+      newUser.nom = createUserDto.nom;
+      newUser.motDePasse = hashedPassword;
+      newUser.telephone = createUserDto.telephone;
+      newUser.adresse = createUserDto.adresse;
+      newUser.verificationToken = verificationToken;
+      newUser.verificationExpires = verificationExpires;
+
+      await manager.save(newUser);
+
+      await this.mailService.sendVerificationEmail(
+        newUser.email,
+        newUser.prenom,
+        verificationToken,
+      );
+
+      const { motDePasse, twoFactorSecret, ...result } = newUser;
+      return result;
+    });
+  }
   async verifyEmail(
     token: string,
   ): Promise<{ success: boolean; message: string }> {
     const user = await this.UtilisateurRepository.findOne({
-      where: { verificationToken: token },
+      where: { verificationToken: token, deletedAt: null },
     });
-    console.log(token);
-    console.log(user);
+
     if (!user) {
       throw new NotFoundException('Invalid verification token');
     }

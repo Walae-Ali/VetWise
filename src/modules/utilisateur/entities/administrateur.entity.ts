@@ -1,5 +1,10 @@
-import { Entity } from 'typeorm';
+import { ChildEntity, Entity } from 'typeorm';
 import { Utilisateur } from './utilisateur.entity';
-
-@Entity('admin')
-export class Administrateur extends Utilisateur {}
+import { UserRole } from '../../../common/enums/roles.enum';
+@ChildEntity('admin')
+export class Administrateur extends Utilisateur {
+  constructor() {
+    super();
+    this.role = UserRole.ADMIN;
+  }
+}

@@ -1,8 +1,10 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, TableInheritance } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { UserRole } from '../../../common/enums/roles.enum';
+
 @Entity('utilisateur')
+@TableInheritance({ column: { type: 'varchar', name: 'type' } })
 export class Utilisateur extends BaseEntity {
   @Column()
   nom: string;
