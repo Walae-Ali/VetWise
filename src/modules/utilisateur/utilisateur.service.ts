@@ -26,80 +26,15 @@ export class UtilisateurService extends GenericService<Utilisateur> {
     super(UtilisateurRepository);
   }
   async findByEmail(email: string): Promise<Utilisateur | null> {
-    return await this.UtilisateurRepository.findOne({ where: { email } });
-  }
-
-  /*  async createUser(
-    createUserDto: RegisterDto,
-  ): Promise<Omit<Utilisateur, 'motDePasse' | 'twoFactorSecret'>> {
-    console.log('Creating user with DTO:', createUserDto);
-    return this.dataSource.transaction(async (manager) => {
-      const existingUser = await manager.findOne(Utilisateur, {
-        where: { email: createUserDto.email },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('Email already registered !');
-      }
-
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(
-        createUserDto.motDePasse,
-        saltRounds,
-      );
-
-      const verificationToken = crypto.randomBytes(32).toString('hex');
-      const verificationExpires = new Date();
-      verificationExpires.setHours(verificationExpires.getHours() + 24);
-
-      let newUser: Utilisateur;
-      if (createUserDto.role === UserRole.PET_OWNER) {
-        newUser = manager.create(ProprietaireAnimal, {
-          email: createUserDto.email,
-          prenom: createUserDto.prenom,
-          nom: createUserDto.nom,
-          motDePasse: hashedPassword,
-          role: UserRole.PET_OWNER,
-          telephone: createUserDto.telephone,
-          adresse: createUserDto.adresse,
-          verificationToken: verificationToken,
-          verificationExpires: verificationExpires,
-        });
-      } else if (createUserDto.role === UserRole.VETERINARIAN) {
-        newUser = manager.create(Veterinaire, {
-          email: createUserDto.email,
-          prenom: createUserDto.prenom,
-          nom: createUserDto.nom,
-          motDePasse: hashedPassword,
-          role: UserRole.VETERINARIAN,
-          telephone: createUserDto.telephone,
-          adresse: createUserDto.adresse,
-          numLicence: createUserDto.numLicence,
-          specialites: createUserDto.specialization,
-          verificationToken: verificationToken,
-          verificationExpires: verificationExpires,
-        });
-      } else {
-        throw new BadRequestException('Invalid role provided!');
-      }
-
-      await manager.save(newUser);
-
-      await this.mailService.sendVerificationEmail(
-        newUser.email,
-        newUser.prenom,
-        verificationToken,
-      );
-
-      const { motDePasse, twoFactorSecret, ...result } = newUser;
-      return result;
+    const user = await this.UtilisateurRepository.findOne({
+      where: { email, deletedAt: null },
     });
-  }*/
+
+    return user;
+  }
   async createUser(
     createUserDto: RegisterDto,
   ): Promise<Omit<Utilisateur, 'motDePasse' | 'twoFactorSecret'>> {
-    console.log('Creating user with DTO:', createUserDto);
-
     return this.dataSource.transaction(async (manager) => {
       const existingUser = await manager.findOne(Utilisateur, {
         where: { email: createUserDto.email },
@@ -122,22 +57,15 @@ export class UtilisateurService extends GenericService<Utilisateur> {
       let newUser: Utilisateur;
 
       if (createUserDto.role === UserRole.PET_OWNER) {
-        // Create as pet owner entity
         newUser = new ProprietaireAnimal();
-        // Role is set automatically via constructor
       } else if (createUserDto.role === UserRole.VETERINARIAN) {
-        // Create as veterinarian entity
         newUser = new Veterinaire();
-        // Role is set automatically via constructor
-
-        // Set vet-specific fields
         (newUser as Veterinaire).numLicence = createUserDto.numLicence;
         (newUser as Veterinaire).specialites = createUserDto.specialization;
       } else {
         throw new BadRequestException('Invalid role provided!');
       }
 
-      // Set common fields
       newUser.email = createUserDto.email;
       newUser.prenom = createUserDto.prenom;
       newUser.nom = createUserDto.nom;
@@ -149,11 +77,16 @@ export class UtilisateurService extends GenericService<Utilisateur> {
 
       await manager.save(newUser);
 
-      await this.mailService.sendVerificationEmail(
+      const verifEmailResult = await this.mailService.sendVerificationEmail(
         newUser.email,
         newUser.prenom,
         verificationToken,
       );
+
+      console.log('Email sent:', verifEmailResult);
+      if (!verifEmailResult.success) {
+        throw new BadRequestException('Failed to send verification email');
+      }
 
       const { motDePasse, twoFactorSecret, ...result } = newUser;
       return result;
@@ -187,20 +120,18 @@ export class UtilisateurService extends GenericService<Utilisateur> {
     return { success: true, message: 'Email successfully verified' };
   }
   async setTwoFactorSecret(userId: number, code: string): Promise<void> {
-    const user = await this.UtilisateurRepository.findOne({
-      where: { id: userId },
-    });
-
+    const user = await this.findOne(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     await this.UtilisateurRepository.update(userId, { twoFactorSecret: code });
   }
 
-  async updateTwoFactor(userId: number, isEnabled: boolean): Promise<void> {
-    const user = await this.UtilisateurRepository.findOne({
-      where: { id: userId },
-    });
+  async updateTwoFactorEnabled(
+    userId: number,
+    isEnabled: boolean,
+  ): Promise<void> {
+    const user = await this.findOne(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -212,9 +143,7 @@ export class UtilisateurService extends GenericService<Utilisateur> {
   }
 
   async updateLastLogin(userId: number): Promise<void> {
-    const user = await this.UtilisateurRepository.findOne({
-      where: { id: userId },
-    });
+    const user = await this.findOne(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');

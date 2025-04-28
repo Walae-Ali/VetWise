@@ -1,4 +1,3 @@
-// src/modules/auth/decorators/require-permissions.decorator.ts
 import { SetMetadata } from '@nestjs/common';
 import { Permission } from '../permissions/permissions.enum';
 

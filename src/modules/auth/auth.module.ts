@@ -5,7 +5,9 @@ import { UtilisateurModule } from '../utilisateur/utilisateur.module'; // Import
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
-
+import { MailModule } from '../mail/mail.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { PasswordReset } from './entities/password-reset.entity';
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -14,7 +16,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       secret: process.env.JWT_SECRET || 'defaultSecret',
       signOptions: { expiresIn: '1h' },
     }),
-    UtilisateurModule, // Add the module here
+    UtilisateurModule,
+    MailModule,
+    TypeOrmModule.forFeature([PasswordReset]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

@@ -3,16 +3,23 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as speakeasy from 'speakeasy';
 import { UtilisateurService } from '../utilisateur/utilisateur.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as crypto from 'crypto';
+import { toDataURL } from 'qrcode';
 import { Utilisateur } from '../utilisateur/entities/utilisateur.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ConfigService } from '@nestjs/config';
-
+import { MailService } from '../mail/mail.service';
+import { PasswordReset } from './entities/password-reset.entity';
+import { Repository } from 'typeorm';
 @Injectable()
 export class AuthService {
   private config: any;
@@ -20,47 +27,46 @@ export class AuthService {
     private usersService: UtilisateurService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailService: MailService,
+    @InjectRepository(PasswordReset)
+    private passwordResetRepository: Repository<PasswordReset>,
   ) {
     this.config = this.configService.get('jwt');
   }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
-    console.log('User found:', user);
     if (!user) {
       throw new UnauthorizedException('Identifiants incorrects');
     }
-
     if (!user.isActive) {
       throw new ForbiddenException('Compte désactivé');
     }
-
+    if (!user.estVerifie) {
+      throw new ForbiddenException('Compte non vérifié');
+    }
     const isPasswordValid = await bcrypt.compare(password, user.motDePasse);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Identifiants incorrects');
     }
 
-    const { motDePasse, twoFactorSecret, ...result } = user;
+    const { motDePasse, ...result } = user;
     return result;
   }
 
   async login(loginDto: LoginDto) {
-    console.log('Login DTO:', loginDto);
     const user = await this.validateUser(loginDto.email, loginDto.motDePasse);
-    console.log('User validated:', user);
-    // Check if 2FA is required and there is no code
-    if (user.twoFactorEnabled && !loginDto.twoFactorCode) {
-      return {
-        requireTwoFactor: true,
-        userId: user.id,
-      };
+
+    if (user.twoFactorEnabled && !loginDto.twoFactorSecret) {
+      throw new UnauthorizedException(
+        "L'authentification à deux facteurs est requise pour cet utilisateur",
+      );
     }
 
-    // Verify 2FA if enabled and code provided
-    if (user.twoFactorEnabled && loginDto.twoFactorCode) {
+    if (user.twoFactorEnabled && loginDto.twoFactorSecret) {
       const isCodeValid = this.verifyTwoFactorCode(
         user.id,
-        loginDto.twoFactorCode,
+        loginDto.twoFactorSecret,
       );
       if (!isCodeValid) {
         throw new UnauthorizedException(
@@ -69,7 +75,6 @@ export class AuthService {
       }
     }
 
-    // Update last login time
     await this.usersService.updateLastLogin(user.id);
 
     return this.generateTokens(user);
@@ -80,7 +85,6 @@ export class AuthService {
   }
 
   private generateTokens(user: Partial<Utilisateur>) {
-    //payload is the data to be encoded in the JWT token
     const payload = {
       sub: user.id,
       email: user.email,
@@ -102,9 +106,10 @@ export class AuthService {
         role: user.role,
         estVerifie: user.estVerifie,
       },
+      Message: 'Vous êtes connecté avec succès',
+      success: true,
     };
   }
-  //issues new tokens using the refresh token
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken);
@@ -121,26 +126,26 @@ export class AuthService {
   }
 
   async setupTwoFactor(userId: number) {
-    //name hia el value elli to
     const secret = speakeasy.generateSecret({
       name: 'VetMed Application',
     });
 
     await this.usersService.setTwoFactorSecret(userId, secret.base32);
 
+    const qrCodeDataUrl = await toDataURL(secret.otpauth_url);
+
     return {
       secret: secret.base32,
       otpauth_url: secret.otpauth_url,
+      qrCodeDataUrl,
     };
   }
 
-  verifyTwoFactorCode(userId: number, code: string): boolean {
-    const user = this.usersService.findOne(userId);
-
+  async verifyTwoFactorCode(userId: number, code: string): Promise<boolean> {
+    const user = await this.usersService.findOne(userId);
     if (!user || !user['twoFactorSecret']) {
       return false;
     }
-
     return speakeasy.totp.verify({
       secret: user['twoFactorSecret'],
       encoding: 'base32',
@@ -149,10 +154,78 @@ export class AuthService {
   }
 
   async enableTwoFactor(userId: number): Promise<void> {
-    await this.usersService.updateTwoFactor(userId, true);
+    await this.usersService.updateTwoFactorEnabled(userId, true);
   }
 
   async disableTwoFactor(userId: number): Promise<void> {
-    await this.usersService.updateTwoFactor(userId, false);
+    await this.usersService.updateTwoFactorEnabled(userId, false);
+  }
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.usersService.findOne(userId);
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.motDePasse,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
+    }
+
+    user.motDePasse = await bcrypt.hash(newPassword, 10);
+    await this.usersService.update(userId, user);
+  }
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    await this.passwordResetRepository.save({
+      user: user,
+      token: token,
+      createdAt: new Date(),
+      expiresAt: expiresAt,
+    });
+    await this.mailService.sendPasswordResetEmail(
+      user.email,
+      user.prenom,
+      token,
+    );
+  }
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const passwordReset = await this.passwordResetRepository.findOne({
+      where: { token },
+      relations: ['user'],
+    });
+
+    if (!passwordReset || passwordReset.expiresAt < new Date()) {
+      throw new BadRequestException(
+        'Token de réinitialisation invalide ou expiré',
+      );
+    }
+    if (!passwordReset.user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+    const user = passwordReset.user;
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.motDePasse = hashedPassword;
+
+    await this.usersService.update(user.id, user);
+
+    await this.passwordResetRepository.remove(passwordReset);
   }
 }

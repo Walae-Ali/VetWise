@@ -2,7 +2,6 @@ import { IsNull, Repository } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { BaseEntity } from '../entities/base.entity';
 export class GenericService<T extends BaseEntity> {
-  // T entité générique définie par une contrainte pour que T est un objet
   constructor(private repository: Repository<T>) {}
 
   async findAll(): Promise<T[]> {
@@ -10,8 +9,6 @@ export class GenericService<T extends BaseEntity> {
   }
 
   async findOne(id: number): Promise<T> {
-    //{ where: { id } } : objet de configuration
-    // as any ala pb de typage mte3 typescript
     const entity = await this.repository.findOne({
       where: { id, deletedAt: null } as any,
     });
@@ -31,9 +28,9 @@ export class GenericService<T extends BaseEntity> {
   }
 
   async update(id: number, updateDto: any): Promise<T> {
-    await this.findOne(id); // Vérifie si l'entité existe
+    await this.findOne(id);
     const updatedData = {
-      ...updateDto, // ... spread operator
+      ...updateDto,
       updatedAt: new Date(),
     };
     await this.repository.update(id, updateDto);

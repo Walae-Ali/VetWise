@@ -25,11 +25,10 @@ export class MailService {
     email: string,
     firstName: string,
     token: string,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; message: string }> {
     const appUrl = this.configService.get('mail').APP_URL;
     const verificationUrl = `${appUrl}/auth/verify-email?token=${token}`;
 
-    // HTML template defined directly in the method
     const verificationEmailTemplate = `
     <!DOCTYPE html>
     <html>
@@ -118,18 +117,22 @@ export class MailService {
       subject: 'Vérifiez votre adresse email - VetMed',
       html: htmlContent,
     });
+    return {
+      success: true,
+      message: 'Email de vérification envoyé avec succès',
+    };
   }
 
-  /*async sendPasswordResetEmail(
+  async sendPasswordResetEmail(
     email: string,
     firstName: string,
     token: string,
-  ): Promise<void> {
-    const appUrl = this.config.get('APP_URL');
+  ): Promise<{ success: boolean; message: string }> {
+    const appUrl = this.configService.get('mail').APP_URL;
     const resetUrl = `${appUrl}/auth/reset-password?token=${token}`;
 
     await this.transporter.sendMail({
-      from: `"VetMed Support" <${this.config.get('MAIL_FROM')}>`,
+      from: `"VetMed Support" <${this.configService.get('mail').from}>`,
       to: email,
       subject: 'Réinitialisation de mot de passe - VetMed',
       html: `
@@ -147,5 +150,9 @@ export class MailService {
         </div>
       `,
     });
-  }*/
+    return {
+      success: true,
+      message: 'Email de réinitialisation de mot de passe envoyé avec succès',
+    };
+  }
 }

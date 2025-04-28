@@ -17,5 +17,5 @@ export class LoginDto {
 
   @IsOptional()
   @IsString()
-  twoFactorCode?: string;
+  twoFactorSecret?: string;
 }

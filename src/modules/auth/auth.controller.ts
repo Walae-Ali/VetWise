@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -17,6 +18,14 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TwoFactorDto } from './dto/two-factor.dto';
 import { Public } from './decorators/public.decorator';
 import { UtilisateurService } from '../utilisateur/utilisateur.service';
+import { UserRole } from 'src/common/enums/roles.enum';
+import { Roles } from './decorators/roles.decorator';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -26,7 +35,6 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
@@ -36,15 +44,15 @@ export class AuthController {
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
-
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
-
   @UseGuards(JwtAuthGuard)
+  //@UseGuards(RolesGuard)
+  //@Roles(UserRole.PET_OWNER)
   @Get('profile')
   getProfile(@Request() req) {
     return req.user;
@@ -55,12 +63,12 @@ export class AuthController {
   async setupTwoFactor(@Request() req) {
     return this.authService.setupTwoFactor(req.user.utilisateur_id);
   }
-  /*
+
   @UseGuards(JwtAuthGuard)
   @Post('two-factor/enable')
   @HttpCode(HttpStatus.OK)
   async enableTwoFactor(@Request() req, @Body() twoFactorDto: TwoFactorDto) {
-    const isValid = this.authService.verifyTwoFactorCode(
+    const isValid = await this.authService.verifyTwoFactorCode(
       req.user.utilisateur_id,
       twoFactorDto.code,
     );
@@ -91,12 +99,51 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout() {
-    // JWT tokens are stateless, so we don't need server-side logout
-    // In a production app, you might want to add the token to a blacklist
     return { success: true, message: 'Déconnexion réussie' };
-  }*/
+  }
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string) {
-    const result = await this.userService.verifyEmail(token);
+    let result: { success: boolean; message: string };
+    if (!token) {
+      return {
+        success: false,
+        message: 'Token de vérification manquant',
+      };
+    }
+    return (result = await this.userService.verifyEmail(token));
+  }
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(
+      req.user.utilisateur_id,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+    return { message: 'Mot de passe changé avec succès' };
+  }
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.authService.sendPasswordResetEmail(forgotPasswordDto.email);
+    return {
+      message:
+        'Si un compte existe avec cette adresse email, un lien de réinitialisation a été envoyé',
+    };
+  }
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+    );
+    return { message: 'Mot de passe réinitialisé avec succès' };
   }
 }
