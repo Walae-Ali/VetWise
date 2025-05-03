@@ -1,18 +1,19 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  OneToMany,
   OneToOne,
+  ManyToMany,
+  OneToMany,
 } from 'typeorm';
 import { ProprietaireAnimal } from '../../utilisateur/entities/proprietaire-animal.entity';
-import { FicheMedicale } from '../../fiche-medicale/entities/fiche-medicale.entity';
+import { DossierMedical } from '../../dossier-medical/entities/dossier-medical.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { Rendezvous } from '../../rendezvous/entities/rendezvous.entity';
+import { Consultation } from '../../consultation/entities/consultation.entity';
 
 @Entity()
-export class Animal {
-  @PrimaryGeneratedColumn()
-  id: number;
+export class Animal extends BaseEntity{
 
   @Column()
   nom: string;
@@ -29,12 +30,14 @@ export class Animal {
   @Column()
   sexe: string;
 
-  @Column('float')
-  poids: number;
-
-  @Column()
-  etatSante: string;
-
   @ManyToOne(() => ProprietaireAnimal, (proprietaire) => proprietaire.animaux)
   proprietaire: ProprietaireAnimal;
+  @OneToOne(() => DossierMedical, (dossier) => dossier.animal, { cascade: true })
+  dossierMedical: DossierMedical;
+  @ManyToMany(() => Rendezvous, (rendezvous) => rendezvous.animaux)
+  rendezvous: Rendezvous[];
+  @OneToMany(() => Consultation, consultation => consultation.animal)
+  consultations: Consultation[];
+
+
 }

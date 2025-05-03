@@ -55,6 +55,6 @@ export const AppDataSource = new DataSource({
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 });
 //générer une migration
-// npm run migration:generate -- src/migrations/"migration_name".ts
+// npm run migration:generate -- src/migrations/migration_name
 //éxecuter migration
 // npm run migration:run

@@ -2,7 +2,9 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { AnimalService } from './animal.service';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('animal') 
 @Controller('animal')
 export class AnimalController {
   constructor(private readonly animalService: AnimalService) {}

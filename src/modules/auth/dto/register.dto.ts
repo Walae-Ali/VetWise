@@ -7,24 +7,30 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { UserRole } from '../../../common/enums/roles.enum';
+import { ApiProperty } from '@nestjs/swagger';
 export class RegisterDto {
   @IsString()
   @IsNotEmpty()
+  @ApiProperty()
   nom: string;
 
   @IsString()
   @IsNotEmpty()
+  @ApiProperty()
   prenom: string;
 
   @IsEmail()
   @IsNotEmpty()
+  @ApiProperty()
   email: string;
 
   @IsString()
   @MinLength(6)
+  @ApiProperty()
   motDePasse: string;
 
   @IsString()
+  @ApiProperty()
   role: UserRole;
 
   @IsString()

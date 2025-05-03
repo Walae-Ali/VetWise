@@ -3,18 +3,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UtilisateurModule } from './modules/utilisateur/utilisateur.module';
 import { AnimalModule } from './modules/animal/animal.module';
-import { FicheMedicaleModule } from './modules/fiche-medicale/fiche-medicale.module';
 import { CliniqueModule } from './modules/clinique/clinique.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Clinique } from './modules/clinique/entities/clinique.entity';
-import { FicheMedicale } from './modules/fiche-medicale/entities/fiche-medicale.entity';
-import { Animal } from './modules/animal/entities/animal.entity';
-import { Utilisateur } from './modules/utilisateur/entities/utilisateur.entity';
-import { Administrateur } from './modules/utilisateur/entities/administrateur.entity';
-import { Veterinaire } from './modules/utilisateur/entities/veterinaire.entity';
 import { AuthModule } from './modules/auth/auth.module';
 import { MailModule } from './modules/mail/mail.module';
+import { DossierMedicalModule } from './modules/dossier-medical/dossier-medical.module';
+import { DisponibiliteModule } from './modules/disponibilite/disponibilite.module';
+
 import {
   AppDataSource,
   databaseConfig,
@@ -22,6 +18,8 @@ import {
   mailConfig,
 } from './config/configuration';
 //import { AppDataSource } from './config/database.config';
+import { RendezvousModule } from './modules/rendezvous/rendezvous.module';
+import { ConsultationModule } from './modules/consultation/consultation.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,10 +33,13 @@ import {
     }),
     UtilisateurModule,
     AnimalModule,
-    FicheMedicaleModule,
+    DossierMedicalModule,
     CliniqueModule,
     AuthModule,
     MailModule,
+    DisponibiliteModule,
+    RendezvousModule,
+    ConsultationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

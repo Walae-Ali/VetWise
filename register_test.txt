@@ -7,3 +7,11 @@
 }
 
 7d563c26efc4273acad894bd38c80c3766e2144a1a681ea19986e9aa6fd8676d
+
+{
+  "nom": "rimaz",
+  "prenom": "rimaz",
+  "email": "rimazarrouki9@gmail.com",
+  "motDePasse": "securePassword1234",
+  "role": "PROPRIETAIRE_ANIMAL"
+}

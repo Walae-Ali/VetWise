@@ -25,7 +25,9 @@ import { RolesGuard } from './guards/roles.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('auth') // Group name in Swagger UI
 @Controller('auth')
 export class AuthController {
   constructor(

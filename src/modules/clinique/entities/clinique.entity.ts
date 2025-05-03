@@ -1,11 +1,10 @@
 // clinique.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Veterinaire } from '../../utilisateur/entities/veterinaire.entity';
+import { BaseEntity } from '../../../common/entities/base.entity'; 
 
 @Entity()
-export class Clinique {
-  @PrimaryGeneratedColumn()
-  id: number;
+export class Clinique extends BaseEntity{
 
   @Column()
   nom: string;
