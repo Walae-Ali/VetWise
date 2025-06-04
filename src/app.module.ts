@@ -45,6 +45,7 @@ import { ChatModule } from './modules/Chat/chat.module';
     DisponibiliteModule,
     RendezvousModule,
     ConsultationModule,
+    ChatModule
   ],
   controllers: [AppController],
   providers: [AppService],

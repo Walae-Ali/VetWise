@@ -12,6 +12,7 @@ import { UserRole } from '../../../common/enums/roles.enum';
 import { Disponibilite } from '../../disponibilite/entities/disponibilite.entity';
 import { Rendezvous } from '../../rendezvous/entities/rendezvous.entity';
 import { Consultation } from '../../consultation/entities/consultation.entity';
+import { Conversation } from 'src/modules/Chat/Entities/conversation.entity';
 @ChildEntity('veterinarian')
 export class Veterinaire extends Utilisateur {
   constructor() {
@@ -38,5 +39,5 @@ export class Veterinaire extends Utilisateur {
   @OneToMany(() => Consultation, consultation => consultation.veterinaire)
   consultations: Consultation[];
 
-
+ 
 }
